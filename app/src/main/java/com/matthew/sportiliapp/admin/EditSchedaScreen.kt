@@ -52,7 +52,7 @@ fun EditSchedaScreen(
 ) {
     val users by gymViewModel.users.observeAsState(emptyList())
     val utente = users.firstOrNull { it.code == utenteCode } ?: return
-    val scheda = utente.scheda ?: Scheda(dataInizio = getCurrentFormattedDate(), 0)
+    val scheda = utente.scheda ?: Scheda(dataInizio = getCurrentFormattedDate(), 7)
     if (scheda.giorni.isEmpty()) {
         val updatedGiorni = scheda.giorni.toMutableMap()
         updatedGiorni["giorno1"] = Giorno("A")

@@ -30,12 +30,16 @@ import coil.compose.rememberAsyncImagePainter
 import com.matthew.sportiliapp.model.SchedaViewModel
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.matthew.sportiliapp.model.SchedaViewModelFactory
 import kotlinx.coroutines.launch
@@ -55,6 +59,7 @@ fun EsercizioScreen(
 
     var notaState by remember { mutableStateOf(esercizio?.noteUtente ?: "") }
     val showingAlertState = remember { mutableStateOf(false) }
+    var isImageFullScreen by remember { mutableStateOf(false) } // Stato per immagine a schermo intero
 
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
@@ -100,6 +105,7 @@ fun EsercizioScreen(
                             .height(250.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.background)
+                            .clickable { isImageFullScreen = true } // Apri immagine a schermo intero
                     ) {
                         Image(
                             painter = painter,
@@ -119,7 +125,11 @@ fun EsercizioScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f))
+                                        .background(
+                                            MaterialTheme.colorScheme.onBackground.copy(
+                                                alpha = 0.2f
+                                            )
+                                        )
                                 ) {
                                     Text(
                                         text = "Immagine non disponibile",
@@ -271,7 +281,70 @@ fun EsercizioScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
+                // Immagine a schermo intero
+                if (isImageFullScreen) {
+                    FullScreenImageDialog(
+                        imageUrl = "https://firebasestorage.googleapis.com/v0/b/sportiliapp.appspot.com/o/${esercizio.name}.png?alt=media&token=cd00fa34-6a1f-4fa7-afa5-d80a1ef5cdaa",
+                        onClose = { isImageFullScreen = false }
+                    )
+                }
             }
         }
     )
+}
+
+@Composable
+fun FullScreenImageDialog(imageUrl: String, onClose: () -> Unit) {
+    Dialog(onDismissRequest = onClose) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                // Pulsante di chiusura
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.TopEnd // Pulsante in alto a destra
+                ) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surface, shape = CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Chiudi immagine",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Immagine centrata con bordi arrotondati
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f) // Manteniamo un rapporto di 3:2
+                        .clip(RoundedCornerShape(16.dp)) // Bordi arrotondati
+                        .background(MaterialTheme.colorScheme.surface) // Sfondo per immagine
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = imageUrl),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit, // L'immagine si adatta mantenendo le proporzioni
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+                }
+            }
+        }
+    }
 }

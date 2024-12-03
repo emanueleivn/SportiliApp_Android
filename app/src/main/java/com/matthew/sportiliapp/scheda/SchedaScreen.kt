@@ -186,24 +186,5 @@ fun convertDateTime(inputDateTime: String): String {
 }
 
 fun getGruppiString(giorno: Giorno): String {
-    var s = ""
-
-    var isFirst = true
-    for ((key, gruppo) in giorno.gruppiMuscolari) {
-        if (!isFirst) {
-            s += ", "
-        }
-        s += gruppo.nome
-        isFirst = false
-    }
-
-    return s
-}
-
-
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewSchedaScreen() {
-    SchedaScreen(navController = rememberNavController())
+    return giorno.gruppiMuscolari.values.joinToString(", ") { it.nome }
 }

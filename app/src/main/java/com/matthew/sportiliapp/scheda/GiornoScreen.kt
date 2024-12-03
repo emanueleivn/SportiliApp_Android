@@ -27,6 +27,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,7 +85,7 @@ fun GiornoScreen(navController: NavHostController, giornoId: String) {
                     }
                 } else {
                     // Se il giorno non esiste, mostra un messaggio di errore
-                    //Text("Giorno non trovato")
+                    Text("Caricamento...")
                 }
             }
         }
@@ -113,6 +117,8 @@ fun GruppoSection(gruppo: GruppoMuscolare, navController: NavHostController, gru
 
 @Composable
 fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
+    var isImageFullScreen by remember { mutableStateOf(false) } // Stato per immagine a schermo intero
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(vertical = 16.dp)
@@ -128,6 +134,7 @@ fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
                 .size(100.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.background)
+                .clickable { isImageFullScreen = true } // Apri immagine a schermo intero
         ) {
             Image(
                 painter = painter,
@@ -191,6 +198,13 @@ fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
                     )
                 }
             }
+        }
+        // Immagine a schermo intero
+        if (isImageFullScreen) {
+            FullScreenImageDialog(
+                imageUrl = "https://firebasestorage.googleapis.com/v0/b/sportiliapp.appspot.com/o/${esercizio.name}.png?alt=media&token=cd00fa34-6a1f-4fa7-afa5-d80a1ef5cdaa",
+                onClose = { isImageFullScreen = false }
+            )
         }
     }
 }

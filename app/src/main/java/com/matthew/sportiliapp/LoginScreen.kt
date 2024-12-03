@@ -136,7 +136,7 @@ fun LoginScreen(navController: NavHostController) {
                     )
                 ) {
                     Text(
-                        text = "Hai bisogno di aiuto?",
+                        text = "Non hai il codice?",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Medium
                     )
