@@ -7,20 +7,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +22,14 @@ import com.matthew.sportiliapp.model.Esercizio
 import com.matthew.sportiliapp.model.EsercizioPredefinito
 import com.matthew.sportiliapp.model.GruppoMuscolare
 import java.util.Locale
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +47,13 @@ fun EditGruppoMuscolareScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var esercizioToDeleteIndex by remember { mutableStateOf(-1) }
     var esercizioToEditIndex by remember { mutableStateOf(-1) }
+
+    // Usando toList().toMutableStateList() manteniamo la reattività della lista
     val eserciziList = remember { gruppoMuscolare.esercizi.toList().toMutableStateList() }
 
+    // Osserva i gruppi muscolari predefiniti dal ViewModel
     val predefiniti by viewModel.gruppiMuscolariPredefiniti.observeAsState(emptyList())
+    // Filtra solo quelli del gruppo corrente
     val predefinitiGruppo = predefiniti.firstOrNull { it.nome == gruppoMuscolare.nome }?.esercizi ?: emptyList()
 
     Scaffold(
@@ -104,9 +106,11 @@ fun EditGruppoMuscolareScreen(
                 }
             }
 
-            if (showEditEsercizioDialog && esercizioToEditIndex>=0) {
+            // Dialog per EDIT
+            if (showEditEsercizioDialog && esercizioToEditIndex >= 0) {
                 EditEsercizioDialog(
-                    esercizio = eserciziList.get(esercizioToEditIndex).second,
+                    eserciziPredefiniti = predefinitiGruppo, // Passiamo gli esercizi predefiniti
+                    esercizio = eserciziList[esercizioToEditIndex].second,
                     onDismiss = { showEditEsercizioDialog = false },
                     onEsercizioEdited = { newEsercizio ->
                         eserciziList[esercizioToEditIndex] = eserciziList[esercizioToEditIndex].first to newEsercizio
@@ -116,6 +120,7 @@ fun EditGruppoMuscolareScreen(
                 )
             }
 
+            // Dialog per ADD
             if (showAddEsercizioDialog) {
                 AddEsercizioDialog(
                     eserciziPredefiniti = predefinitiGruppo,
@@ -128,6 +133,7 @@ fun EditGruppoMuscolareScreen(
                 )
             }
 
+            // Dialog di conferma ELIMINAZIONE
             if (showDeleteDialog && esercizioToDeleteIndex >= 0) {
                 AlertDialog(
                     onDismissRequest = { showDeleteDialog = false },
@@ -176,20 +182,30 @@ fun EsercizioItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = esercizio.name,
+                Text(
+                    text = esercizio.name,
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.weight(1f),
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
                 IconButton(onClick = onMoveUp) {
-                    Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = "Sposta Su")
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = "Sposta Su"
+                    )
                 }
                 IconButton(onClick = onMoveDown) {
-                    Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = "Sposta Giù")
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Sposta Giù"
+                    )
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Elimina Esercizio")
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Elimina Esercizio"
+                    )
                 }
             }
 
@@ -217,71 +233,39 @@ fun AddEsercizioDialog(
     var serieDescrizione by remember { mutableStateOf("") }
     var notePT by remember { mutableStateOf("") }
 
-    var expanded by remember { mutableStateOf(false) }
-    var selectedEsercizio by remember { mutableStateOf(eserciziPredefiniti[0]) }
-
-    // Nuovi stepper per il riposo
+    // Stepper per il riposo
     var minutiRiposo by remember { mutableStateOf(0) }
     var secondiRiposo by remember { mutableStateOf(0) }
 
-    // Stato per decidere se includere il riposo
+    // Checkbox per includere o meno il riposo
     var includeRiposo by remember { mutableStateOf(true) }
+
+    // Gestione suggerimenti (autocomplete)
+    var expandedName by remember { mutableStateOf(false) }
+    val suggestions = eserciziPredefiniti.filter {
+        it.nome.contains(esercizioName, ignoreCase = true) && esercizioName.isNotBlank()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Aggiungi Esercizio") },
         text = {
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState()) // Scroll verticale
+                modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
-                if (esercizioName.isEmpty()) {
-                    Column {
-                        ExposedDropdownMenuBox(
-                            expanded = expanded,
-                            onExpandedChange = { expanded = !expanded }
-                        ) {
-                            TextField(
-                                value = selectedEsercizio.nome,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Esercizi Predefiniti") },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .menuAnchor()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                eserciziPredefiniti.forEach { esercizio ->
-                                    DropdownMenuItem(
-                                        text = { Text(esercizio.nome) },
-                                        onClick = {
-                                            selectedEsercizio = esercizio
-                                            expanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-                OutlinedTextField(
+                // Campo Nome Esercizio con suggerimenti
+                AutoCompleteDropdown(
                     value = esercizioName,
-                    onValueChange = { it ->
-                        esercizioName =
-                            it.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
-                    },
-                    label = { Text("Nome Esercizio") },
-                    modifier = Modifier.fillMaxWidth()
+                    onValueChange = { esercizioName = it },
+                    label = "Nome Esercizio",
+                    suggestions = eserciziPredefiniti.map { it.nome }.filter { it.contains(esercizioName, ignoreCase = true) },
+                    onSuggestionSelected = { esercizioName = it }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Se l'utente non ha inserito manualmente una descrizione, mostriamo stepper di default
                 if (serieDescrizione.isEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
                     Stepper(
                         value = serie,
                         onValueChange = { serie = it },
@@ -296,6 +280,7 @@ fun AddEsercizioDialog(
                         label = "Ripetizioni"
                     )
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = serieDescrizione,
@@ -306,7 +291,6 @@ fun AddEsercizioDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Checkbox per includere o meno il riposo
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -317,7 +301,6 @@ fun AddEsercizioDialog(
                     Text("Includi Riposo", style = MaterialTheme.typography.bodyLarge)
                 }
 
-                // Stepper per il riposo (Minuti e Secondi) solo se l'opzione è attiva
                 if (includeRiposo) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Riposo", style = MaterialTheme.typography.bodyLarge)
@@ -349,16 +332,16 @@ fun AddEsercizioDialog(
             TextButton(
                 onClick = {
                     val riposo = if (!includeRiposo || (minutiRiposo == 0 && secondiRiposo == 0)) {
-                        ""  // Riposo è una stringa vuota se non è incluso o se è 0
+                        ""
                     } else {
-                        if (secondiRiposo<10)
+                        if (secondiRiposo < 10)
                             "${minutiRiposo}'0${secondiRiposo}\""
                         else
                             "${minutiRiposo}'${secondiRiposo}\""
                     }
 
                     val newEsercizio = Esercizio(
-                        name = esercizioName.ifEmpty { selectedEsercizio.nome },
+                        name = esercizioName.ifEmpty { "Esercizio" },
                         serie = serieDescrizione.ifEmpty { "$serie x $ripetizioni" },
                         riposo = riposo,
                         notePT = notePT
@@ -377,70 +360,118 @@ fun AddEsercizioDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AutoCompleteDropdown(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    suggestions: List<String>,
+    onSuggestionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it && suggestions.isNotEmpty() }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {
+                onValueChange(it)
+                expanded = it.isNotEmpty() && suggestions.isNotEmpty()
+            },
+            label = { Text(label) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            suggestions.forEach { suggestion ->
+                DropdownMenuItem(
+                    text = { Text(suggestion) },
+                    onClick = {
+                        onSuggestionSelected(suggestion)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditEsercizioDialog(
+    eserciziPredefiniti: List<EsercizioPredefinito>,
     esercizio: Esercizio,
     onDismiss: () -> Unit,
     onEsercizioEdited: (Esercizio) -> Unit
 ) {
-    // Usa remember per evitare la riassegnazione continua
     var esercizioName by remember { mutableStateOf(esercizio.name) }
     val (parsedSerie, parsedRipetizioni, parsedDescrizione) = remember {
         parseSerie(esercizio.serie)
     }
 
-    var serie by remember { mutableStateOf(parsedSerie) }
-    var ripetizioni by remember { mutableStateOf(parsedRipetizioni) }
+    var serie by remember { mutableStateOf(parsedSerie ?: 3) }
+    var ripetizioni by remember { mutableStateOf(parsedRipetizioni ?: 10) }
     var serieDescrizione by remember { mutableStateOf(parsedDescrizione) }
     var notePT by remember { mutableStateOf(esercizio.notePT ?: "") }
 
-    // Estrai i minuti e secondi dal riposo
     val (minutiRiposoIniziale, secondiRiposoIniziale) = remember {
         parseRiposo(esercizio.riposo ?: "")
     }
     var minutiRiposo by remember { mutableStateOf(minutiRiposoIniziale) }
     var secondiRiposo by remember { mutableStateOf(secondiRiposoIniziale) }
-
-    // Stato per decidere se includere il riposo
     var includeRiposo by remember { mutableStateOf(esercizio.riposo?.isNotEmpty() == true) }
+
+    // Gestione suggerimenti (autocomplete) per il nome
+    var expandedName by remember { mutableStateOf(false) }
+    val suggestions = eserciziPredefiniti.filter {
+        it.nome.contains(esercizioName, ignoreCase = true) && esercizioName.isNotBlank()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Modifica Esercizio") },
         text = {
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState()) // Scroll verticale
+                modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
-                OutlinedTextField(
+                // Campo Nome Esercizio con suggerimenti
+                // Campo Nome Esercizio con suggerimenti
+                AutoCompleteDropdown(
                     value = esercizioName,
-                    onValueChange = { it ->
-                        esercizioName =
-                            it.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
-                    },
-                    label = { Text("Nome Esercizio") },
-                    modifier = Modifier.fillMaxWidth()
+                    onValueChange = { esercizioName = it },
+                    label = "Nome Esercizio",
+                    suggestions = eserciziPredefiniti.map { it.nome }.filter { it.contains(esercizioName, ignoreCase = true) },
+                    onSuggestionSelected = { esercizioName = it }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Se l'utente non ha una descrizione personalizzata, mostriamo i due stepper
                 if (serieDescrizione.isEmpty()) {
+                    Stepper(
+                        value = serie,
+                        onValueChange = { serie = it },
+                        range = 1..30,
+                        label = "Serie"
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
-                    serie?.let {
-                        Stepper(
-                            value = it,
-                            onValueChange = { serie = it },
-                            range = 1..30,
-                            label = "Serie"
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    ripetizioni?.let {
-                        Stepper(
-                            value = it,
-                            onValueChange = { ripetizioni = it },
-                            range = 1..50,
-                            label = "Ripetizioni"
-                        )
-                    }
+                    Stepper(
+                        value = ripetizioni,
+                        onValueChange = { ripetizioni = it },
+                        range = 1..50,
+                        label = "Ripetizioni"
+                    )
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = serieDescrizione,
@@ -451,7 +482,6 @@ fun EditEsercizioDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Checkbox per includere o meno il riposo
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -462,7 +492,6 @@ fun EditEsercizioDialog(
                     Text("Includi Riposo", style = MaterialTheme.typography.bodyLarge)
                 }
 
-                // Stepper per il riposo (Minuti e Secondi) solo se l'opzione è attiva
                 if (includeRiposo) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Riposo", style = MaterialTheme.typography.bodyLarge)
@@ -493,11 +522,10 @@ fun EditEsercizioDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    // Se il riposo non è incluso o è zero, impostiamo una stringa vuota
                     val riposo = if (!includeRiposo || (minutiRiposo == 0 && secondiRiposo == 0)) {
-                        ""  // Riposo è una stringa vuota se non è incluso o se è 0
+                        ""
                     } else {
-                        if (secondiRiposo<10)
+                        if (secondiRiposo < 10)
                             "${minutiRiposo}'0${secondiRiposo}\""
                         else
                             "${minutiRiposo}'${secondiRiposo}\""
@@ -524,7 +552,7 @@ fun EditEsercizioDialog(
     )
 }
 
-// Funzione per estrarre i minuti e i secondi dal formato "M'S" del riposo
+// Funzione per estrarre i minuti e i secondi dal formato "M'S"
 fun parseRiposo(riposo: String): Pair<Int, Int> {
     val regex = Regex("""(\d+)'(\d+)\"""")
     val match = regex.find(riposo)
@@ -537,8 +565,8 @@ fun parseRiposo(riposo: String): Pair<Int, Int> {
     }
 }
 
+// Ritorna un Triple(serie, ripetizioni, descrizione)
 fun parseSerie(serie: String): Triple<Int?, Int?, String> {
-    // Controlla il formato NxN
     val partsNxN = serie.split("x", "X", " x ", " X ")
     if (partsNxN.size == 2) {
         val serieValue = partsNxN.getOrNull(0)?.toIntOrNull()
@@ -554,10 +582,10 @@ fun parseSerie(serie: String): Triple<Int?, Int?, String> {
 fun Stepper(
     value: Int,
     onValueChange: (Int) -> Unit,
-    range: IntProgression,  // range ora include l'incremento
+    range: IntProgression,
     label: String
 ) {
-    val step = range.step  // ottieni l'incremento dal range
+    val step = range.step
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -571,7 +599,7 @@ fun Stepper(
         ) {
             IconButton(onClick = {
                 if (value - step >= range.first) {
-                    onValueChange(value - step)  // Decrementa del valore dello step
+                    onValueChange(value - step)
                 }
             }) {
                 Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrement")
@@ -581,7 +609,7 @@ fun Stepper(
 
             IconButton(onClick = {
                 if (value + step <= range.last) {
-                    onValueChange(value + step)  // Incrementa del valore dello step
+                    onValueChange(value + step)
                 }
             }) {
                 Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increment")
