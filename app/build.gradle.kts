@@ -73,4 +73,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(platform(libs.firebase.bom))
     implementation("io.coil-kt:coil-compose:2.0.0-rc01")
+    implementation("com.google.code.gson:gson:2.10")
 }

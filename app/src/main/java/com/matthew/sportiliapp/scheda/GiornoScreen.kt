@@ -1,7 +1,6 @@
 package com.matthew.sportiliapp.scheda
 
 
-import android.os.Bundle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,16 +18,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +43,6 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.matthew.sportiliapp.model.Esercizio
-import com.matthew.sportiliapp.model.Giorno
 import com.matthew.sportiliapp.model.GruppoMuscolare
 import com.matthew.sportiliapp.model.SchedaViewModel
 import com.matthew.sportiliapp.model.SchedaViewModelFactory
@@ -55,8 +52,9 @@ import com.matthew.sportiliapp.model.SchedaViewModelFactory
 fun GiornoScreen(navController: NavHostController, giornoId: String) {
     val context = LocalContext.current
     val viewModel: SchedaViewModel = viewModel(factory = SchedaViewModelFactory(context))
-    val giorno = viewModel.scheda.value?.giorni?.get(giornoId)
-
+    // Osserviamo il LiveData 'scheda' dal ViewModel
+    val scheda by viewModel.scheda.observeAsState()
+    val giorno = scheda?.giorni?.get(giornoId)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -77,7 +75,6 @@ fun GiornoScreen(navController: NavHostController, giornoId: String) {
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.padding(16.dp)
                     )
-
                     LazyColumn {
                         items(giorno.gruppiMuscolari.entries.toList()) { (gruppoId, gruppo) ->
                             GruppoSection(gruppo = gruppo, navController, gruppoId, giornoId)
@@ -85,12 +82,13 @@ fun GiornoScreen(navController: NavHostController, giornoId: String) {
                     }
                 } else {
                     // Se il giorno non esiste, mostra un messaggio di errore
-                    Text("Caricamento...")
+                    Text("Giorno non trovato", modifier = Modifier.padding(16.dp))
                 }
             }
         }
     )
 }
+
 
 @Composable
 fun GruppoSection(gruppo: GruppoMuscolare, navController: NavHostController, gruppoId: String, giornoId: String) {
@@ -117,8 +115,6 @@ fun GruppoSection(gruppo: GruppoMuscolare, navController: NavHostController, gru
 
 @Composable
 fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
-    var isImageFullScreen by remember { mutableStateOf(false) } // Stato per immagine a schermo intero
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(vertical = 16.dp)
@@ -128,13 +124,11 @@ fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
         val painter = rememberAsyncImagePainter(
             model = "https://firebasestorage.googleapis.com/v0/b/sportiliapp.appspot.com/o/${esercizio.name}.png?alt=media&token=cd00fa34-6a1f-4fa7-afa5-d80a1ef5cdaa"
         )
-
         Box(
             modifier = Modifier
                 .size(100.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.background)
-                .clickable { isImageFullScreen = true } // Apri immagine a schermo intero
         ) {
             Image(
                 painter = painter,
@@ -143,7 +137,6 @@ fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxSize()
                     .clip(RoundedCornerShape(10.dp))
             )
-
             when (painter.state) {
                 is AsyncImagePainter.State.Loading -> {
                     // Display a placeholder while the image loads
@@ -170,9 +163,7 @@ fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
                 }
             }
         }
-
         Spacer(modifier = Modifier.width(16.dp))
-
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -198,13 +189,6 @@ fun EsercizioRow(esercizio: Esercizio, onClick: () -> Unit) {
                     )
                 }
             }
-        }
-        // Immagine a schermo intero
-        if (isImageFullScreen) {
-            FullScreenImageDialog(
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/sportiliapp.appspot.com/o/${esercizio.name}.png?alt=media&token=cd00fa34-6a1f-4fa7-afa5-d80a1ef5cdaa",
-                onClose = { isImageFullScreen = false }
-            )
         }
     }
 }
