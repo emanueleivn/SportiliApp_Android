@@ -27,8 +27,6 @@ class SchedaViewModel(private val context: Context) : ViewModel() {
 
     private fun loadScheda() {
         viewModelScope.launch {
-            isLoading.postValue(true)
-
             // Carica la scheda locale
             val localScheda = loadSchedaFromLocal()
             val localSchedaHash = getLocalSchedaHash()
@@ -38,17 +36,19 @@ class SchedaViewModel(private val context: Context) : ViewModel() {
                 _scheda.postValue(localScheda)
             }
 
+            // Imposta subito isLoading a false per consentire la visualizzazione dei dati locali
+            isLoading.postValue(false)
+
             // Recupera il codice utente salvato
             val sharedPreferences = context.getSharedPreferences("shared", Context.MODE_PRIVATE)
             val savedCode = sharedPreferences.getString("code", "") ?: ""
 
             // Se il codice dell'utente è vuoto, termina qui
             if (savedCode.isEmpty()) {
-                isLoading.postValue(false)
                 return@launch
             }
 
-            // Controlla sempre il database per verificare aggiornamenti
+            // Controlla in background il database per eventuali aggiornamenti
             val database = FirebaseDatabase.getInstance()
             val schedaRef = database.reference.child("users").child(savedCode).child("scheda")
 
@@ -59,21 +59,21 @@ class SchedaViewModel(private val context: Context) : ViewModel() {
                     if (remoteScheda != null) {
                         val remoteHash = hashString(remoteScheda.toString())
 
-                        // Se l'hash è diverso, aggiorna la scheda locale
+                        // Se l'hash è diverso, aggiorna la scheda locale e la UI
                         if (localSchedaHash != remoteHash) {
                             saveSchedaToLocal(remoteScheda, remoteHash)
-                            _scheda.postValue(remoteScheda) // Aggiorna anche il LiveData
+                            _scheda.postValue(remoteScheda)
                         }
                     }
-                    isLoading.postValue(false)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    isLoading.postValue(false) // Gestione errore nel database
+                    // Qui puoi eventualmente loggare l'errore o mostrare un messaggio
                 }
             })
         }
     }
+
 
 
     // Salva la scheda in locale
