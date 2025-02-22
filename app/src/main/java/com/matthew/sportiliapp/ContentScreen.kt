@@ -47,9 +47,8 @@ fun ContentScreen(navController: NavHostController) {
                         onClick = {
                             if (item.route == "scheda") {
                                 navController2.navigate("scheda") {
-                                    popUpTo(navController2.graph.startDestinationId) { inclusive = true }
+                                    popUpTo("scheda") { inclusive = true }
                                     launchSingleTop = true
-                                    restoreState = true
                                 }
                             } else {
                                 navController2.navigate(item.route) {
